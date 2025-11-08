@@ -7,29 +7,27 @@
 </head>
 <body>
 <h1>📱 Shake Tester</h1>
-<input type="text" id="bridgeIP" placeholder="IP ของ PC (Node.js Bridge)" value="192.168.1.206">
-<button id="shakeBtn">ส่ง shake</button>
+<input type="text" id="unityIP" placeholder="IP Unity Server">
+<button id="sendBtn">ส่ง shake</button>
 <pre id="status"></pre>
 
 <script>
-const btn = document.getElementById('shakeBtn');
+const btn = document.getElementById('sendBtn');
 const status = document.getElementById('status');
 
-btn.addEventListener('click', () => {
-    const ip = document.getElementById('bridgeIP').value;
-    fetch(`http://${ip}:3000/shake`, {
-        method: 'POST'
-    })
+function sendShake(ip) {
+    fetch(`http://${ip}:7070/shake`, { method: 'POST' })
     .then(res => res.text())
-    .then(txt => {
-        status.textContent = '📩 ' + txt;
-    })
-    .catch(err => {
-        status.textContent = '❌ ' + err;
-    });
+    .then(txt => status.textContent = '📩 ' + txt)
+    .catch(err => status.textContent = '❌ ' + err);
+}
+
+btn.addEventListener('click', () => {
+    const ip = document.getElementById('unityIP').value;
+    sendShake(ip);
 });
 
-// ตรวจจับการเขย่า
+// ตรวจจับเขย่า
 if(window.DeviceMotionEvent){
     let lastShake = 0;
     window.addEventListener('devicemotion', (event) => {
@@ -37,8 +35,8 @@ if(window.DeviceMotionEvent){
         const strength = Math.abs(acc.x)+Math.abs(acc.y)+Math.abs(acc.z);
         if(strength>30 && Date.now() - lastShake > 2000){
             lastShake = Date.now();
-            const ip = document.getElementById('bridgeIP').value;
-            fetch(`http://${ip}:3000/shake`, { method: 'POST' });
+            const ip = document.getElementById('unityIP').value;
+            sendShake(ip);
             status.textContent = `📳 Shake detected! strength=${strength}`;
         }
     });
