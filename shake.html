@@ -12,7 +12,8 @@ const btn = document.getElementById('shakeBtn');
 
 function connectWS() {
   const ip = prompt("Enter Node.js Bridge IP:", "192.168.1.206");
-  ws = new WebSocket(`ws://${ip}:8080`);
+ws = new WebSocket(`ws://${ip}:9090`);
+
 
   ws.onopen = () => statusEl.innerText = "Connected!";
   ws.onerror = () => statusEl.innerText = "Error connecting";
