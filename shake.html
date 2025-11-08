@@ -5,7 +5,7 @@
 <title>Shake Test with Debug Status</title>
 <style>
 body { font-family: sans-serif; background: #f3f3f3; text-align: center; padding: 30px; }
-#status { white-space: pre-line; background: #fff; padding: 15px; border-radius: 10px; display: inline-block; margin-top: 20px; }
+#status { white-space: pre-line; background: #fff; padding: 15px; border-radius: 10px; display: inline-block; margin-top: 20px; max-width: 400px; }
 button { padding: 10px 20px; font-size: 16px; margin: 10px; border-radius: 8px; cursor: pointer; }
 </style>
 </head>
@@ -47,11 +47,34 @@ connectBtn.onclick = () => {
   };
 
   ws.onerror = (e) => {
-    logStatus(`❌ เชื่อมต่อไม่สำเร็จ\nสาเหตุที่เป็นไปได้:\n- IP ผิด หรือไม่อยู่ใน Wi-Fi เดียวกัน\n- Node.js Bridge ไม่ได้รันอยู่\n- Firewall หรือ Antivirus บล็อคพอร์ต 9090\n\nรายละเอียด: ${e.message || e}`, true);
+    // ดึงรายละเอียด error จาก event
+    let details = "ไม่ทราบสาเหตุ (อาจถูกบล็อคโดย browser)";
+    try {
+      if (e instanceof Event && e.target && e.target.url) {
+        details = `WebSocket URL: ${e.target.url}`;
+      } else if (e.message) {
+        details = e.message;
+      } else {
+        details = JSON.stringify(e);
+      }
+    } catch (ex) {
+      details = ex.message;
+    }
+
+    logStatus(`❌ เชื่อมต่อไม่สำเร็จ
+สาเหตุที่เป็นไปได้:
+- IP ผิด หรือไม่อยู่ใน Wi-Fi เดียวกัน
+- Node.js Bridge ไม่ได้รันอยู่
+- Firewall หรือ Antivirus บล็อคพอร์ต 9090
+- Browser บล็อค Cross-Origin
+
+🧾 รายละเอียด: ${details}`, true);
   };
 
-  ws.onclose = () => {
-    logStatus(`⚠️ การเชื่อมต่อถูกปิด`);
+  ws.onclose = (evt) => {
+    let reason = "ไม่ทราบสาเหตุ";
+    if (evt.code === 1006) reason = "การเชื่อมต่อถูกตัดโดยไม่ได้ปิดตามปกติ (code 1006)";
+    logStatus(`⚠️ การเชื่อมต่อถูกปิด\nเหตุผล: ${reason}`, true);
   };
 };
 
@@ -74,6 +97,7 @@ if (window.DeviceMotionEvent) {
       logStatus("📤 เขย่ามือถือ — ส่ง shake!");
     }
   });
+  logStatus("Motion Sensor: ✅ พร้อมใช้งาน");
 } else {
   logStatus("❌ มือถือไม่รองรับ Motion Sensor", true);
 }
