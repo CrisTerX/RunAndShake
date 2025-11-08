@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Shake Controller</title></head>
+<body>
+<h2>เขย่ามือถือเพื่อขยับวัตถุใน Unity</h2>
+<p>เชื่อมกับ IP ของ PC (แก้ในโค้ดด้านล่าง)</p>
+
+<script>
+const PC_IP = "192.168.1.10"; // 🔧 ใส่ IP เครื่อง PC ที่รัน Unity
+const PORT = 7070;
+
+// ฟังก์ชันส่งข้อความ UDP ผ่าน fetch (ใช้ HTTP Relay)
+async function sendShake() {
+  fetch(`http://${PC_IP}:${PORT}/?msg=shake`).catch(()=>{});
+}
+
+// ตรวจจับการเขย่า
+let lastShake = 0;
+window.addEventListener("devicemotion", e => {
+  let acc = e.accelerationIncludingGravity;
+  let total = Math.abs(acc.x) + Math.abs(acc.y) + Math.abs(acc.z);
+  let now = Date.now();
+  if (total > 35 && now - lastShake > 800) {
+    lastShake = now;
+    fetch(`http://${PC_IP}:${PORT}/?msg=shake`).catch(()=>{});
+    alert("เขย่า! (ส่งข้อความไป Unity)");
+  }
+});
+</script>
+</body>
+</html>
