@@ -5,41 +5,27 @@
 <button id="shakeBtn">Simulate Shake</button>
 <p id="status">Connecting...</p>
 <p id="motion">Motion Sensor: ❌</p>
-<p id="network">Network Test: ❌</p>
-<p id="ip"></p>
 
 <script>
 const statusEl = document.getElementById('status');
 const motionEl = document.getElementById('motion');
-const networkEl = document.getElementById('network');
-const ipEl = document.getElementById('ip');
 const btn = document.getElementById('shakeBtn');
 
-let ws;
+const pcIP = prompt("Enter Unity PC IP:", "192.168.1.206");
+const pcPort = 5000;
 
-function connectWS() {
-    const serverIP = prompt("Enter Unity Server IP:", "YOUR_PUBLIC_IP");
-    ipEl.innerText = "Connecting to: " + serverIP;
-
-    ws = new WebSocket(`ws://${serverIP}:9090`);
-
-    ws.onopen = () => {
-        statusEl.innerText = "✅ Connected";
-        networkEl.innerText = "Network Test: ✅";
-    };
-    ws.onerror = (e) => {
-        statusEl.innerText = "❌ Connection Failed";
-        networkEl.innerText = "Network Test: ❌";
-        console.error("WebSocket Error:", e);
-    };
-    ws.onclose = () => statusEl.innerText = "🔴 Closed";
+function sendShake() {
+    fetch(`http://${pcIP}:${pcPort}/shake`, {method: "POST"})
+    .then(res => {
+        statusEl.innerText = "✅ Shake sent!";
+    })
+    .catch(err => {
+        statusEl.innerText = "❌ Failed to send shake";
+        console.error(err);
+    });
 }
 
-connectWS();
-
-btn.addEventListener("click", () => {
-    if(ws.readyState === WebSocket.OPEN) ws.send("shake");
-});
+btn.addEventListener("click", sendShake);
 
 // Motion sensor
 if(window.DeviceMotionEvent){
@@ -47,7 +33,7 @@ if(window.DeviceMotionEvent){
     window.addEventListener('devicemotion', (event) => {
         const a = event.accelerationIncludingGravity;
         const total = Math.abs(a.x)+Math.abs(a.y)+Math.abs(a.z);
-        if(total>20 && ws.readyState === WebSocket.OPEN) ws.send("shake");
+        if(total>20) sendShake();
     });
 }else{
     motionEl.innerText = "Motion Sensor: ❌";
