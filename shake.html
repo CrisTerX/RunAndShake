@@ -9,25 +9,22 @@
 <p id="connectInfo"></p>
 
 <script>
-let ws = null;
 const statusEl = document.getElementById('status');
 const motionEl = document.getElementById('motionStatus');
 const networkEl = document.getElementById('networkStatus');
 const connectEl = document.getElementById('connectInfo');
 const btn = document.getElementById('shakeBtn');
 
+// IP + Port
 let serverIP = prompt("Enter Unity Server IP:", "192.168.1.206");
-let serverPort = 5001;
+let serverPort = prompt("Enter Unity Server Port:", "5001");
 connectEl.innerText = `Connecting to IP: ${serverIP}:${serverPort}`;
 
 // Motion Sensor
-if (window.DeviceMotionEvent) {
-    motionEl.innerText = "Motion Sensor: ✅";
-} else {
-    motionEl.innerText = "Motion Sensor: ❌";
-}
+if (window.DeviceMotionEvent) motionEl.innerText = "Motion Sensor: ✅";
+else motionEl.innerText = "Motion Sensor: ❌";
 
-// Function to send shake
+// Send shake
 function sendShake() {
     fetch(`http://${serverIP}:${serverPort}/shake`, { method: 'POST' })
     .then(res=>{
