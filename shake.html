@@ -4,40 +4,63 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Shake Tester</title>
+<style>
+body { font-family: sans-serif; padding: 10px; }
+input, button { font-size: 16px; padding: 5px; margin: 5px 0; }
+#status { background: #f0f0f0; padding: 10px; white-space: pre-wrap; }
+</style>
 </head>
 <body>
-<h1>📱 Shake Tester</h1>
-<input type="text" id="unityIP" placeholder="IP Unity Server">
+<h2>📱 Shake Tester</h2>
+<input type="text" id="unityIP" placeholder="192.168.1.206:7070">
 <button id="sendBtn">ส่ง shake</button>
-<pre id="status"></pre>
+
+<h3>สถานะ</h3>
+<pre id="status">เริ่มต้น...</pre>
 
 <script>
-const btn = document.getElementById('sendBtn');
 const status = document.getElementById('status');
+const btn = document.getElementById('sendBtn');
 
-function sendShake(ip) {
-    fetch(`http://${ip}:7070/shake`, { method: 'POST' })
+function log(msg){ status.textContent += msg + "\n"; }
+
+function sendShake(ip){
+    log("⚡ กำลังส่ง shake...");
+    fetch(`http://${ip}`, { method: 'POST' })
     .then(res => res.text())
-    .then(txt => status.textContent = '📩 ' + txt)
-    .catch(err => status.textContent = '❌ ' + err);
+    .then(txt => log("📩 Shake sent! Response: " + txt))
+    .catch(err => log("❌ ส่ง shake ไม่สำเร็จ: " + err));
 }
 
-btn.addEventListener('click', () => {
+// ตรวจ Motion Sensor
+if(window.DeviceMotionEvent){
+    log("✅ Motion Sensor supported");
+    if(typeof DeviceMotionEvent.requestPermission === 'function'){
+        DeviceMotionEvent.requestPermission()
+        .then(response => {
+            if(response==='granted') log("✅ Motion Sensor permission granted");
+            else log("❌ Motion Sensor permission denied");
+        }).catch(err=>log("❌ Motion Sensor error: "+err));
+    }
+} else log("❌ Motion Sensor not supported");
+
+// ปุ่มส่ง shake
+btn.addEventListener('click', ()=>{
     const ip = document.getElementById('unityIP').value;
     sendShake(ip);
 });
 
 // ตรวจจับเขย่า
+let lastShake = 0;
 if(window.DeviceMotionEvent){
-    let lastShake = 0;
-    window.addEventListener('devicemotion', (event) => {
+    window.addEventListener('devicemotion', (event)=>{
         const acc = event.accelerationIncludingGravity;
         const strength = Math.abs(acc.x)+Math.abs(acc.y)+Math.abs(acc.z);
-        if(strength>30 && Date.now() - lastShake > 2000){
+        if(strength>30 && Date.now()-lastShake>2000){
             lastShake = Date.now();
             const ip = document.getElementById('unityIP').value;
             sendShake(ip);
-            status.textContent = `📳 Shake detected! strength=${strength}`;
+            log(`📳 Shake detected! strength=${Math.round(strength)}`);
         }
     });
 }
