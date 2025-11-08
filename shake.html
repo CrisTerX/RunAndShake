@@ -3,71 +3,53 @@
 <body>
 <h2>Shake Test</h2>
 <button id="shakeBtn">Simulate Shake</button>
-
-<p id="status">Status: Connecting...</p>
-<p id="motion">Motion Sensor: ❌</p>
-<p id="network">Network Test: ❌</p>
-<p id="ipInfo"></p>
+<p id="status">Connecting...</p>
+<p id="motionStatus">Motion Sensor: ❌</p>
+<p id="networkStatus">Network Test: ❌</p>
+<p id="connectInfo"></p>
 
 <script>
+let ws = null;
 const statusEl = document.getElementById('status');
-const motionEl = document.getElementById('motion');
-const networkEl = document.getElementById('network');
-const ipEl = document.getElementById('ipInfo');
+const motionEl = document.getElementById('motionStatus');
+const networkEl = document.getElementById('networkStatus');
+const connectEl = document.getElementById('connectInfo');
 const btn = document.getElementById('shakeBtn');
 
-const pcIP = prompt("Enter Unity PC IP:", "192.168.1.206");
-const pcPort = 5000;
+let serverIP = prompt("Enter Unity Server IP:", "192.168.1.206");
+let serverPort = 5001;
+connectEl.innerText = `Connecting to IP: ${serverIP}:${serverPort}`;
 
-ipEl.innerText = "Connecting to IP: " + pcIP + ":" + pcPort;
-
-// ตรวจสอบ Motion Sensor
-if(window.DeviceMotionEvent){
+// Motion Sensor
+if (window.DeviceMotionEvent) {
     motionEl.innerText = "Motion Sensor: ✅";
-}else{
+} else {
     motionEl.innerText = "Motion Sensor: ❌";
 }
 
-// ตรวจสอบ Network
-function testNetwork(){
-    fetch(`http://${pcIP}:${pcPort}/shake`, {method: "POST"})
-    .then(res => {
-        if(res.ok){
-            networkEl.innerText = "Network Test: ✅";
-        }else{
-            networkEl.innerText = "Network Test: ❌ (HTTP Error)";
-        }
+// Function to send shake
+function sendShake() {
+    fetch(`http://${serverIP}:${serverPort}/shake`, { method: 'POST' })
+    .then(res=>{
+        statusEl.innerText = "✅ Shake sent!";
+        networkEl.innerText = "Network Test: ✅";
     })
     .catch(err=>{
+        statusEl.innerText = "❌ Failed to send shake";
         networkEl.innerText = "Network Test: ❌ (Cannot reach Unity Server)";
         console.error(err);
     });
 }
-testNetwork();
 
-// ส่ง shake
-function sendShake(){
-    fetch(`http://${pcIP}:${pcPort}/shake`, {method: "POST"})
-    .then(res=>{
-        statusEl.innerText = "✅ Shake sent!";
-    })
-    .catch(err=>{
-        statusEl.innerText = "❌ Failed to send shake";
-        console.error(err);
-    });
-}
-
-// ปุ่ม Simulate Shake
+// Button click
 btn.addEventListener("click", sendShake);
 
-// Motion sensor
-if(window.DeviceMotionEvent){
-    window.addEventListener('devicemotion', (event) => {
-        const a = event.accelerationIncludingGravity;
-        const total = Math.abs(a.x)+Math.abs(a.y)+Math.abs(a.z);
-        if(total>20) sendShake();
-    });
-}
+// Device Motion
+window.addEventListener('devicemotion', (event) => {
+    const a = event.accelerationIncludingGravity;
+    const total = Math.abs(a.x)+Math.abs(a.y)+Math.abs(a.z);
+    if(total>20) sendShake();
+});
 </script>
 </body>
 </html>
