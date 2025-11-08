@@ -3,151 +3,128 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shake Test (Smart Debug + Ping)</title>
+<title>Shake Test</title>
 <style>
-  body { font-family: sans-serif; background: #111; color: #eee; text-align: center; padding: 20px; }
-  h2 { color: #4FC3F7; }
-  #log { text-align: left; background: #222; padding: 10px; border-radius: 10px; height: 220px; overflow-y: auto; }
-  button { background: #4CAF50; color: white; padding: 10px 20px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; }
-  button:hover { background: #66BB6A; }
-  .error { color: #F44336; }
-  .ok { color: #4CAF50; }
-  .warn { color: #FF9800; }
+  body { font-family: Arial, sans-serif; background: #111; color: #eee; text-align: center; padding: 20px; }
+  h2 { color: #0ff; }
+  button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; border-radius: 8px; border: none; background: #09f; color: #fff; }
+  #statusBox { margin-top: 20px; padding: 15px; border: 1px solid #444; border-radius: 10px; background: #222; text-align: left; display: inline-block; width: 90%; max-width: 500px; }
+  .ok { color: #0f0; }
+  .fail { color: #f33; }
+  .warn { color: #fc3; }
 </style>
 </head>
 <body>
-  <h2>📱 Shake Test (Smart Debug + Ping)</h2>
-  <p id="status">สถานะ: <span style="color:orange">กำลังเริ่มต้น...</span></p>
+  <h2>Shake Test</h2>
   <button id="shakeBtn">Simulate Shake</button>
-  <button id="pingBtn">Ping Test 🔄</button>
-  <div id="log"></div>
+
+  <div id="statusBox">
+    <p id="connectStatus">🕓 Connecting...</p>
+    <p id="motionStatus">Motion Sensor: ⏳</p>
+    <p id="networkStatus">Network Test: ⏳</p>
+    <p id="nodeStatus">Node.js Status: ⏳</p>
+    <p id="ipInfo">Connecting to IP: -</p>
+  </div>
 
 <script>
-const logEl = document.getElementById("log");
-const statusEl = document.getElementById("status");
-const btnShake = document.getElementById("shakeBtn");
-const btnPing = document.getElementById("pingBtn");
-
 let ws;
-let ipAddr;
-let deviceMotionOK = false;
+let ipAddr = "";
+const connectEl = document.getElementById("connectStatus");
+const motionEl = document.getElementById("motionStatus");
+const networkEl = document.getElementById("networkStatus");
+const nodeEl = document.getElementById("nodeStatus");
+const ipEl = document.getElementById("ipInfo");
+const btn = document.getElementById("shakeBtn");
 
-function log(msg, type="") {
-  const color =
-    type === "error" ? "red" :
-    type === "ok" ? "lightgreen" :
-    type === "warn" ? "orange" : "white";
-  logEl.innerHTML += `<div style="color:${color}">${msg}</div>`;
-  logEl.scrollTop = logEl.scrollHeight;
+// ✅ ตรวจสอบ motion sensor
+if (window.DeviceMotionEvent) {
+  motionEl.innerHTML = "Motion Sensor: ✅";
+} else {
+  motionEl.innerHTML = "Motion Sensor: ❌ ไม่รองรับบนอุปกรณ์นี้";
 }
 
-// 🟢 ฟังก์ชันทดสอบ Ping ไปยัง Node.js Bridge
-async function pingTest(ip) {
-  const url = `http://${ip}:9090/ping?_=${Date.now()}`;
-  const start = performance.now();
-  try {
-    const res = await fetch(url, { method: "GET", mode: "cors" });
-    const text = await res.text();
-    const end = performance.now();
-    const ms = Math.round(end - start);
-    if (res.ok && text.includes("pong")) {
-      log(`✅ Node.js Bridge ตอบกลับ: pong (${ms} ms)`, "ok");
-      return true;
-    } else {
-      log(`⚠️ Ping ได้แต่ตอบกลับไม่ถูกต้อง (${ms} ms): ${text}`, "warn");
-      return false;
-    }
-  } catch (err) {
-    log(`❌ Ping ไม่สำเร็จ (${err.message})`, "error");
-    log("ตรวจสอบสาเหตุที่เป็นไปได้:", "error");
-    log("- Node.js Bridge ยังไม่รัน", "error");
-    log("- พอร์ต 9090 ถูก Firewall บล็อค", "error");
-    log("- ไม่อยู่ใน Wi-Fi เดียวกัน", "error");
-    return false;
-  }
-}
-
-// 🧩 ทดสอบ WebSocket Connection
-async function testConnection(ip) {
-  const url = `ws://${ip}:9090`;
-  log(`🔍 ทดสอบ WebSocket: ${url}`);
+// 📡 ฟังก์ชันเชื่อมต่อ WebSocket
+function connectWS() {
+  ipAddr = prompt("กรอก IP ของ Node.js Bridge:", "192.168.1.206");
+  if (!ipAddr) return;
+  ipEl.innerHTML = `Connecting to IP: ${ipAddr}`;
+  const wsUrl = `ws://${ipAddr}:9090`;
 
   try {
-    ws = new WebSocket(url);
+    ws = new WebSocket(wsUrl);
   } catch (e) {
-    log(`❌ ไม่สามารถสร้าง WebSocket ได้ (${e.message})`, "error");
+    showError(`ไม่สามารถสร้าง WebSocket: ${e.message}`);
     return;
   }
 
   ws.onopen = () => {
-    log(`✅ WebSocket เชื่อมต่อสำเร็จ: ${url}`, "ok");
-    statusEl.innerHTML = `สถานะ: <span class='ok'>เชื่อมต่อสำเร็จ</span>`;
+    connectEl.innerHTML = `✅ เชื่อมต่อสำเร็จ: ${wsUrl}`;
+    networkEl.innerHTML = "Network Test: ✅";
   };
 
-  ws.onerror = (err) => {
-    log(`❌ WebSocket เชื่อมต่อไม่สำเร็จ`, "error");
-    log(`- IP อาจผิด หรือ Node.js ไม่ได้รัน`, "error");
-    log(`- พอร์ต 9090 ถูกบล็อค`, "error");
-    log(`🧾 Error: ${err.message || err}`, "error");
-    statusEl.innerHTML = `<span class="error">❌ เชื่อมต่อไม่สำเร็จ</span>`;
+  ws.onerror = (event) => {
+    showError(`เชื่อมต่อไม่สำเร็จ`, event);
   };
 
-  ws.onclose = () => log("🔴 การเชื่อมต่อถูกปิด");
+  ws.onclose = () => {
+    connectEl.innerHTML = "❌ การเชื่อมต่อถูกปิด";
+    networkEl.innerHTML = "Network Test: ❌";
+  };
 }
 
-// 📱 ขอสิทธิ์ Motion Sensor
-async function checkMotionPermission() {
-  if (typeof DeviceMotionEvent.requestPermission === "function") {
-    const res = await DeviceMotionEvent.requestPermission();
-    if (res === "granted") {
-      deviceMotionOK = true;
-      log("✅ Motion Sensor: อนุญาตแล้ว", "ok");
-    } else {
-      log("❌ Motion Sensor: ถูกปฏิเสธ", "error");
-    }
-  } else {
-    deviceMotionOK = true;
-    log("✅ Motion Sensor: ใช้งานได้ (ไม่ต้องอนุญาต)", "ok");
+// 🔄 ฟังก์ชันทดสอบ Node.js Bridge ว่ายังรันอยู่ไหม
+async function checkNodeStatus(ip) {
+  try {
+    const res = await fetch(`http://${ip}:9090/status?_=${Date.now()}`);
+    if (!res.ok) throw new Error("Response not OK");
+    const data = await res.json();
+    nodeEl.innerHTML = `Node.js Status: <span class="ok">🟢 ${data.status} (${data.uptime})</span>`;
+  } catch (err) {
+    nodeEl.innerHTML = `Node.js Status: <span class="fail">🔴 Offline (${err.message})</span>`;
   }
 }
 
-// 📤 ปุ่มจำลองการเขย่า
-btnShake.addEventListener("click", () => {
+// ❌ แสดงสาเหตุเมื่อเชื่อมต่อไม่สำเร็จ
+function showError(message, event) {
+  connectEl.innerHTML = `
+  ❌ เชื่อมต่อไม่สำเร็จ<br>
+  สาเหตุที่เป็นไปได้:<br>
+  - IP ผิด หรือไม่อยู่ใน Wi-Fi เดียวกัน<br>
+  - Node.js Bridge ไม่ได้รันอยู่<br>
+  - Firewall หรือ Antivirus บล็อคพอร์ต 9090<br>
+  - Browser บล็อค Cross-Origin<br><br>
+  🧾 รายละเอียด: ${message}<br>
+  ${event ? ("<pre>" + JSON.stringify(event, null, 2) + "</pre>") : ""}
+  `;
+  networkEl.innerHTML = "Network Test: ❌";
+}
+
+// 📤 ปุ่มจำลอง Shake
+btn.addEventListener("click", () => {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send("shake");
-    log("📤 ส่ง shake -> Unity แล้ว", "ok");
   } else {
-    log("❌ ยังไม่ได้เชื่อมต่อ WebSocket", "error");
+    alert("ยังไม่เชื่อมต่อ Node.js Bridge!");
   }
 });
 
-// 🔁 ปุ่ม Ping Test
-btnPing.addEventListener("click", async () => {
-  if (!ipAddr) return log("⚠️ ยังไม่ได้ตั้งค่า IP", "warn");
-  log("🔄 กำลัง Ping...");
-  await pingTest(ipAddr);
-});
-
-// 📳 ตรวจจับการเขย่าจริง
-window.addEventListener("devicemotion", (e) => {
-  if (!deviceMotionOK || !ws || ws.readyState !== WebSocket.OPEN) return;
-  const a = e.accelerationIncludingGravity;
+// 📱 ตรวจจับการสั่นจริง
+window.addEventListener('devicemotion', (event) => {
+  const a = event.accelerationIncludingGravity;
+  if (!a) return;
   const total = Math.abs(a.x) + Math.abs(a.y) + Math.abs(a.z);
-  if (total > 20) {
+  if (total > 20 && ws && ws.readyState === WebSocket.OPEN) {
     ws.send("shake");
-    log("📳 เขย่ามือถือ -> ส่ง shake แล้ว", "ok");
   }
 });
 
-// 🚀 เริ่มต้น
-(async () => {
-  ipAddr = prompt("กรอก IP เครื่อง Node.js Bridge (เช่น 192.168.1.206):", "192.168.1.206");
-  if (!ipAddr) return log("❌ ไม่ได้กรอก IP", "error");
-  log(`กำลังตรวจสอบกับ: ${ipAddr}`);
-  await checkMotionPermission();
-  const alive = await pingTest(ipAddr);
-  if (alive) await testConnection(ipAddr);
-})();
+// 🔁 ตรวจสอบ Node.js ทุกๆ 5 วินาที
+setInterval(() => {
+  if (ipAddr) checkNodeStatus(ipAddr);
+}, 5000);
+
+// 🚀 เริ่มการเชื่อมต่อ
+connectWS();
 </script>
 </body>
 </html>
