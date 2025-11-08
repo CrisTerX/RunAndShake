@@ -1,59 +1,36 @@
 <!DOCTYPE html>
 <html>
-<head>
-<meta charset="UTF-8">
-<title>Shake Test</title>
-</head>
 <body>
 <h2>Shake Test</h2>
+<button id="shakeBtn">Simulate Shake</button>
 <p id="status">Connecting...</p>
-<button id="testShake">Simulate Shake</button>
 
 <script>
 let ws;
 const statusEl = document.getElementById('status');
-const btn = document.getElementById('testShake');
+const btn = document.getElementById('shakeBtn');
 
 function connectWS() {
-    const ip = prompt("Enter Unity IP:", "192.168.1.206");
-    const port = prompt("Enter Unity WebSocket port:", "8080");
-    ws = new WebSocket(`ws://${ip}:${port}`);
+  const ip = prompt("Enter Node.js Bridge IP:", "192.168.1.206");
+  ws = new WebSocket(`ws://${ip}:8080`);
 
-    ws.onopen = () => {
-        statusEl.innerText = `Connected to ws://${ip}:${port}`;
-    };
-    ws.onmessage = (msg) => {
-        console.log("Message from Unity:", msg.data);
-    };
-    ws.onerror = (err) => {
-        statusEl.innerText = "WebSocket Error";
-        console.error(err);
-    };
-    ws.onclose = () => {
-        statusEl.innerText = "WebSocket Closed";
-    };
+  ws.onopen = () => statusEl.innerText = "Connected!";
+  ws.onerror = () => statusEl.innerText = "Error connecting";
+
+  ws.onclose = () => statusEl.innerText = "Closed";
 }
 
 connectWS();
 
-function sendShake() {
-    if(ws && ws.readyState === WebSocket.OPEN){
-        ws.send("shake");
-        console.log("Sent shake");
-    } else {
-        console.log("WebSocket not open");
-    }
-}
+btn.addEventListener("click", () => {
+  if(ws.readyState === WebSocket.OPEN) ws.send("shake");
+});
 
-btn.addEventListener("click", sendShake);
-
-// Motion sensor
+// motion sensor
 window.addEventListener('devicemotion', (event) => {
-    const acceleration = event.accelerationIncludingGravity;
-    const total = Math.abs(acceleration.x) + Math.abs(acceleration.y) + Math.abs(acceleration.z);
-    if(total > 20){  // threshold
-        sendShake();
-    }
+  const a = event.accelerationIncludingGravity;
+  const total = Math.abs(a.x)+Math.abs(a.y)+Math.abs(a.z);
+  if(total>20 && ws.readyState === WebSocket.OPEN) ws.send("shake");
 });
 </script>
 </body>
