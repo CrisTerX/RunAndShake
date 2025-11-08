@@ -1,67 +1,81 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<title>Shake Test with Debug Status</title>
+<style>
+body { font-family: sans-serif; background: #f3f3f3; text-align: center; padding: 30px; }
+#status { white-space: pre-line; background: #fff; padding: 15px; border-radius: 10px; display: inline-block; margin-top: 20px; }
+button { padding: 10px 20px; font-size: 16px; margin: 10px; border-radius: 8px; cursor: pointer; }
+</style>
+</head>
 <body>
-<h2>Shake Test</h2>
+<h2>📱 Shake Test</h2>
+<button id="connectBtn">Connect</button>
 <button id="shakeBtn">Simulate Shake</button>
-<p id="status">Connecting...</p>
-<p id="motionStatus">Motion Sensor: ❌</p>
-<p id="networkStatus">Network Test: ❌</p>
-<p id="ipDisplay">IP: --</p>
+
+<div id="status">ยังไม่ได้เชื่อมต่อ</div>
 
 <script>
 let ws;
-const statusEl = document.getElementById('status');
-const motionEl = document.getElementById('motionStatus');
-const networkEl = document.getElementById('networkStatus');
-const ipEl = document.getElementById('ipDisplay');
-const btn = document.getElementById('shakeBtn');
+const statusEl = document.getElementById("status");
+const connectBtn = document.getElementById("connectBtn");
+const shakeBtn = document.getElementById("shakeBtn");
+let ip = "";
 
-async function connectWS() {
-  const ip = prompt("Enter Node.js Bridge IP:", "192.168.1.206");
-  ipEl.innerText = "Connecting to IP: " + ip;
-
-  try {
-    ws = new WebSocket(`ws://${ip}:9090`);
-    
-    ws.onopen = () => {
-      statusEl.innerText = "Connected!";
-      networkEl.innerText = "Network Test: ✅";
-    };
-
-    ws.onerror = () => {
-      statusEl.innerText = "Error connecting";
-      networkEl.innerText = "Network Test: ❌";
-    };
-
-    ws.onclose = () => {
-      statusEl.innerText = "Closed";
-      networkEl.innerText = "Network Test: ❌";
-    };
-  } catch(e) {
-    statusEl.innerText = "Connection Failed";
-    networkEl.innerText = "Network Test: ❌";
-  }
+function logStatus(msg, isError=false) {
+  statusEl.style.color = isError ? "red" : "black";
+  statusEl.innerText = msg;
 }
 
-connectWS();
+connectBtn.onclick = () => {
+  ip = prompt("กรอก IP ของ Node.js Bridge:", "192.168.1.206");
+  if (!ip) return;
 
-// ปุ่มจำลอง shake
-btn.addEventListener("click", () => {
-  if(ws && ws.readyState === WebSocket.OPEN) {
-    ws.send("shake");
+  const wsUrl = `ws://${ip}:9090`;
+  logStatus(`🔗 กำลังเชื่อมต่อ...\n${wsUrl}`);
+
+  try {
+    ws = new WebSocket(wsUrl);
+  } catch (err) {
+    logStatus("❌ สร้าง WebSocket ไม่สำเร็จ\n" + err.message, true);
+    return;
   }
-});
 
-// motion sensor
-if(window.DeviceMotionEvent) {
-  motionEl.innerText = "Motion Sensor: ✅";
-  window.addEventListener('devicemotion', (event) => {
+  ws.onopen = () => {
+    logStatus(`✅ เชื่อมต่อสำเร็จ!\nIP: ${ip}:9090`);
+  };
+
+  ws.onerror = (e) => {
+    logStatus(`❌ เชื่อมต่อไม่สำเร็จ\nสาเหตุที่เป็นไปได้:\n- IP ผิด หรือไม่อยู่ใน Wi-Fi เดียวกัน\n- Node.js Bridge ไม่ได้รันอยู่\n- Firewall หรือ Antivirus บล็อคพอร์ต 9090\n\nรายละเอียด: ${e.message || e}`, true);
+  };
+
+  ws.onclose = () => {
+    logStatus(`⚠️ การเชื่อมต่อถูกปิด`);
+  };
+};
+
+shakeBtn.onclick = () => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send("shake");
+    logStatus("📤 ส่งคำสั่ง shake แล้ว!");
+  } else {
+    logStatus("❌ ยังไม่เชื่อมต่อกับ Node.js Bridge", true);
+  }
+};
+
+// ตรวจจับ motion sensor
+if (window.DeviceMotionEvent) {
+  window.addEventListener("devicemotion", (event) => {
     const a = event.accelerationIncludingGravity;
-    const total = Math.abs(a.x)+Math.abs(a.y)+Math.abs(a.z);
-    if(total>20 && ws && ws.readyState === WebSocket.OPEN) ws.send("shake");
+    const total = Math.abs(a.x) + Math.abs(a.y) + Math.abs(a.z);
+    if (total > 25 && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send("shake");
+      logStatus("📤 เขย่ามือถือ — ส่ง shake!");
+    }
   });
 } else {
-  motionEl.innerText = "Motion Sensor: ❌ Not Supported";
+  logStatus("❌ มือถือไม่รองรับ Motion Sensor", true);
 }
 </script>
 </body>
