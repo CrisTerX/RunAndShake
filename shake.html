@@ -1,69 +1,60 @@
 <!DOCTYPE html>
-<html lang="th">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shake TesterV.2</title>
-<style>
-body { font-family: sans-serif; padding: 10px; }
-input, button { font-size: 16px; padding: 5px; margin: 5px 0; }
-#status { background: #f0f0f0; padding: 10px; white-space: pre-wrap; }
-</style>
+<title>Shake Test</title>
 </head>
 <body>
-<h2>📱 Shake TesterV.2</h2>
-<input type="text" id="unityIP" placeholder="192.168.1.206:7070">
-<button id="sendBtn">ส่ง shake</button>
-
-<h3>สถานะ</h3>
-<pre id="status">เริ่มต้น...</pre>
+<h2>Shake Test</h2>
+<p id="status">Connecting...</p>
+<button id="testShake">Simulate Shake</button>
 
 <script>
-const status = document.getElementById('status');
-const btn = document.getElementById('sendBtn');
+let ws;
+const statusEl = document.getElementById('status');
+const btn = document.getElementById('testShake');
 
-function log(msg){ status.textContent += msg + "\n"; }
+function connectWS() {
+    const ip = prompt("Enter Unity IP:", "192.168.1.206");
+    const port = prompt("Enter Unity WebSocket port:", "8080");
+    ws = new WebSocket(`ws://${ip}:${port}`);
 
-function sendShake(ip){
-    log("⚡ กำลังส่ง shake...");
-    fetch(`http://${ip}`, { method: 'POST' })
-    .then(res => res.text())
-    .then(txt => log("📩 Shake sent! Response: " + txt))
-    .catch(err => log("❌ ส่ง shake ไม่สำเร็จ: " + err));
+    ws.onopen = () => {
+        statusEl.innerText = `Connected to ws://${ip}:${port}`;
+    };
+    ws.onmessage = (msg) => {
+        console.log("Message from Unity:", msg.data);
+    };
+    ws.onerror = (err) => {
+        statusEl.innerText = "WebSocket Error";
+        console.error(err);
+    };
+    ws.onclose = () => {
+        statusEl.innerText = "WebSocket Closed";
+    };
 }
 
-// ตรวจ Motion Sensor
-if(window.DeviceMotionEvent){
-    log("✅ Motion Sensor supported");
-    if(typeof DeviceMotionEvent.requestPermission === 'function'){
-        DeviceMotionEvent.requestPermission()
-        .then(response => {
-            if(response==='granted') log("✅ Motion Sensor permission granted");
-            else log("❌ Motion Sensor permission denied");
-        }).catch(err=>log("❌ Motion Sensor error: "+err));
+connectWS();
+
+function sendShake() {
+    if(ws && ws.readyState === WebSocket.OPEN){
+        ws.send("shake");
+        console.log("Sent shake");
+    } else {
+        console.log("WebSocket not open");
     }
-} else log("❌ Motion Sensor not supported");
-
-// ปุ่มส่ง shake
-btn.addEventListener('click', ()=>{
-    const ip = document.getElementById('unityIP').value;
-    sendShake(ip);
-});
-
-// ตรวจจับเขย่า
-let lastShake = 0;
-if(window.DeviceMotionEvent){
-    window.addEventListener('devicemotion', (event)=>{
-        const acc = event.accelerationIncludingGravity;
-        const strength = Math.abs(acc.x)+Math.abs(acc.y)+Math.abs(acc.z);
-        if(strength>30 && Date.now()-lastShake>2000){
-            lastShake = Date.now();
-            const ip = document.getElementById('unityIP').value;
-            sendShake(ip);
-            log(`📳 Shake detected! strength=${Math.round(strength)}`);
-        }
-    });
 }
+
+btn.addEventListener("click", sendShake);
+
+// Motion sensor
+window.addEventListener('devicemotion', (event) => {
+    const acceleration = event.accelerationIncludingGravity;
+    const total = Math.abs(acceleration.x) + Math.abs(acceleration.y) + Math.abs(acceleration.z);
+    if(total > 20){  // threshold
+        sendShake();
+    }
+});
 </script>
 </body>
 </html>
