@@ -3,105 +3,46 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shake Debug Tester</title>
-<style>
-body { font-family: sans-serif; text-align: center; background: #111; color: white; padding: 40px; }
-input, button { font-size: 18px; margin: 10px; padding: 10px; border-radius: 8px; }
-button { background: #28a745; color: white; border: none; }
-#status { margin-top: 20px; text-align:left; white-space: pre-line; }
-</style>
+<title>Shake Tester</title>
 </head>
 <body>
-
-<h1>📱 Shake Debug Tester</h1>
-
-<p>ใส่ IP ของ PC (Unity Editor)</p>
-<input type="text" id="ipInput" placeholder="เช่น 192.168.1.12" />
-<button id="connectBtn">Connect & Test</button>
-<button id="shakeBtn" style="display:none;">ส่ง shake</button>
-
-<pre id="status">สถานะ:\n</pre>
+<h1>📱 Shake Tester</h1>
+<input type="text" id="bridgeIP" placeholder="IP ของ PC (Node.js Bridge)" value="192.168.1.206">
+<button id="shakeBtn">ส่ง shake</button>
+<pre id="status"></pre>
 
 <script>
-const port = 7070;
-let serverIP = "";
+const btn = document.getElementById('shakeBtn');
+const status = document.getElementById('status');
 
-// ฟังก์ชันทดสอบ network
-async function sendShake() {
-  if (!serverIP) return;
-  updateStatus("กำลังส่ง shake...");
-  try {
-    await fetch(`http://${serverIP}:${port}/?msg=shake`);
-    updateStatus("ส่ง shake สำเร็จ ✅");
-  } catch(err) {
-    updateStatus("ส่ง shake ไม่สำเร็จ ❌ ตรวจสอบ IP / Port / Network\n" + err);
-  }
-}
-
-// ฟังก์ชันอัปเดตข้อความ status
-function updateStatus(msg) {
-  const s = document.getElementById("status");
-  s.textContent += msg + "\n";
-  console.log(msg);
-}
-
-// ตรวจสอบ DeviceMotion permission
-async function checkMotionPermission() {
-  if (typeof DeviceMotionEvent.requestPermission === "function") {
-    updateStatus("ตรวจสอบ permission Motion Sensor...");
-    try {
-      const response = await DeviceMotionEvent.requestPermission();
-      if (response === "granted") {
-        updateStatus("Motion Sensor ✅");
-      } else {
-        updateStatus("Motion Sensor ❌ ผู้ใช้ปฏิเสธ permission");
-      }
-    } catch(err) {
-      updateStatus("Motion Sensor ❌ Error: " + err);
-    }
-  } else {
-    updateStatus("Motion Sensor ✅ ไม่ต้องขอ permission (Browser รองรับอัตโนมัติ)");
-  }
-}
-
-// ตรวจสอบ WebSocket / fetch network
-async function testNetwork(ip) {
-  try {
-    const res = await fetch(`http://${ip}:${port}/?msg=test`);
-    updateStatus("Network test ✅ fetch ถึง Unity / Server");
-  } catch(err) {
-    updateStatus("Network test ❌ ไม่สามารถ fetch ถึง Unity / Server\n" + err);
-  }
-}
-
-// ปุ่ม Connect
-document.getElementById("connectBtn").addEventListener("click", async () => {
-  serverIP = document.getElementById("ipInput").value.trim();
-  if (!serverIP) { alert("กรุณากรอก IP"); return; }
-  document.getElementById("shakeBtn").style.display = "inline-block";
-  updateStatus("เชื่อมต่อกับ: " + serverIP + ":" + port);
-
-  await checkMotionPermission();
-  await testNetwork(serverIP);
+btn.addEventListener('click', () => {
+    const ip = document.getElementById('bridgeIP').value;
+    fetch(`http://${ip}:3000/shake`, {
+        method: 'POST'
+    })
+    .then(res => res.text())
+    .then(txt => {
+        status.textContent = '📩 ' + txt;
+    })
+    .catch(err => {
+        status.textContent = '❌ ' + err;
+    });
 });
 
-// ปุ่มส่ง shake
-document.getElementById("shakeBtn").addEventListener("click", sendShake);
-
-// ตรวจจับการเขย่าแบบจริง
-if (window.DeviceMotionEvent) {
-  let lastShake = 0;
-  window.addEventListener("devicemotion", (event) => {
-    const acc = event.accelerationIncludingGravity;
-    const strength = Math.abs(acc.x) + Math.abs(acc.y) + Math.abs(acc.z);
-    if (strength > 30 && Date.now() - lastShake > 2000) {
-      lastShake = Date.now();
-      updateStatus("📳 เขย่า detected! strength=" + strength);
-      sendShake();
-    }
-  });
+// ตรวจจับการเขย่า
+if(window.DeviceMotionEvent){
+    let lastShake = 0;
+    window.addEventListener('devicemotion', (event) => {
+        const acc = event.accelerationIncludingGravity;
+        const strength = Math.abs(acc.x)+Math.abs(acc.y)+Math.abs(acc.z);
+        if(strength>30 && Date.now() - lastShake > 2000){
+            lastShake = Date.now();
+            const ip = document.getElementById('bridgeIP').value;
+            fetch(`http://${ip}:3000/shake`, { method: 'POST' });
+            status.textContent = `📳 Shake detected! strength=${strength}`;
+        }
+    });
 }
 </script>
-
 </body>
 </html>
