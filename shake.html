@@ -1,32 +1,28 @@
 <!DOCTYPE html>
 <html>
 <body>
-<h2>Shake Test</h2>
+<h2>Shake Test Online</h2>
 <button id="shakeBtn">Simulate Shake</button>
 <p id="status">Connecting...</p>
 <p id="motionStatus">Motion Sensor: ❌</p>
 <p id="networkStatus">Network Test: ❌</p>
-<p id="connectInfo"></p>
 
 <script>
 const statusEl = document.getElementById('status');
 const motionEl = document.getElementById('motionStatus');
 const networkEl = document.getElementById('networkStatus');
-const connectEl = document.getElementById('connectInfo');
 const btn = document.getElementById('shakeBtn');
 
-// IP + Port
-let serverIP = prompt("Enter Unity Server IP:", "192.168.1.206");
-let serverPort = prompt("Enter Unity Server Port:", "5001");
-connectEl.innerText = `Connecting to IP: ${serverIP}:${serverPort}`;
+// ตั้งค่า Unity Server URL ตรงนี้
+const UNITY_SERVER_URL = "http://YOUR_PUBLIC_IP_OR_DOMAIN:5001/shake";
 
 // Motion Sensor
 if (window.DeviceMotionEvent) motionEl.innerText = "Motion Sensor: ✅";
 else motionEl.innerText = "Motion Sensor: ❌";
 
-// Send shake
+// ส่ง shake
 function sendShake() {
-    fetch(`http://${serverIP}:${serverPort}/shake`, { method: 'POST' })
+    fetch(UNITY_SERVER_URL, { method: 'POST' })
     .then(res=>{
         statusEl.innerText = "✅ Shake sent!";
         networkEl.innerText = "Network Test: ✅";
