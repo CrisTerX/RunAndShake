@@ -1,31 +1,68 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>Shake Controller</title></head>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Shake Controller</title>
+<style>
+body {
+  font-family: sans-serif;
+  text-align: center;
+  margin-top: 30px;
+}
+input, button {
+  font-size: 18px;
+  padding: 6px;
+  margin: 6px;
+  border-radius: 10px;
+}
+#status {
+  color: green;
+  margin-top: 10px;
+  font-weight: bold;
+}
+</style>
+</head>
 <body>
-<h2>เขย่ามือถือเพื่อขยับวัตถุใน Unity</h2>
-<p>เชื่อมกับ IP ของ PC (แก้ในโค้ดด้านล่าง)</p>
+<h2>📱 ตัวควบคุมเขย่า Unity Game</h2>
+<p>ใส่ IP ของเครื่อง PC ที่รัน Unity:</p>
+
+<input id="ipInput" type="text" placeholder="เช่น 192.168.1.10" />
+<button onclick="connect()">เชื่อมต่อ</button>
+
+<p id="status">ยังไม่เชื่อมต่อ</p>
 
 <script>
-const PC_IP = "192.168.1.10"; // 🔧 ใส่ IP เครื่อง PC ที่รัน Unity
+let PC_IP = "";
 const PORT = 7070;
+let lastShake = 0;
 
-// ฟังก์ชันส่งข้อความ UDP ผ่าน fetch (ใช้ HTTP Relay)
-async function sendShake() {
-  fetch(`http://${PC_IP}:${PORT}/?msg=shake`).catch(()=>{});
+function connect() {
+  PC_IP = document.getElementById("ipInput").value.trim();
+  if (!PC_IP) {
+    alert("กรุณาใส่ IP ของเครื่อง PC ก่อน!");
+    return;
+  }
+  document.getElementById("status").innerText = "เชื่อมต่อกับ " + PC_IP + ":" + PORT;
+  alert("พร้อมแล้ว! เขย่ามือถือเพื่อส่งสัญญาณ");
 }
 
 // ตรวจจับการเขย่า
-let lastShake = 0;
 window.addEventListener("devicemotion", e => {
+  if (!PC_IP) return; // ยังไม่ได้ใส่ IP
   let acc = e.accelerationIncludingGravity;
   let total = Math.abs(acc.x) + Math.abs(acc.y) + Math.abs(acc.z);
   let now = Date.now();
   if (total > 35 && now - lastShake > 800) {
     lastShake = now;
-    fetch(`http://${PC_IP}:${PORT}/?msg=shake`).catch(()=>{});
-    alert("เขย่า! (ส่งข้อความไป Unity)");
+    sendShake();
   }
 });
+
+function sendShake() {
+  fetch(`http://${PC_IP}:${PORT}/?msg=shake`).catch(err => {
+    console.log("ส่งไม่สำเร็จ:", err);
+  });
+}
 </script>
 </body>
 </html>
