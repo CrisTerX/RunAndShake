@@ -4,35 +4,65 @@
 <h2>Shake Test</h2>
 <button id="shakeBtn">Simulate Shake</button>
 <p id="status">Connecting...</p>
+<p id="motionStatus">Motion Sensor: ❌</p>
+<p id="networkStatus">Network Test: ❌</p>
+<p id="ipDisplay">IP: --</p>
 
 <script>
 let ws;
 const statusEl = document.getElementById('status');
+const motionEl = document.getElementById('motionStatus');
+const networkEl = document.getElementById('networkStatus');
+const ipEl = document.getElementById('ipDisplay');
 const btn = document.getElementById('shakeBtn');
 
-function connectWS() {
+async function connectWS() {
   const ip = prompt("Enter Node.js Bridge IP:", "192.168.1.206");
-ws = new WebSocket(`ws://${ip}:9090`);
+  ipEl.innerText = "Connecting to IP: " + ip;
 
+  try {
+    ws = new WebSocket(`ws://${ip}:8080`);
+    
+    ws.onopen = () => {
+      statusEl.innerText = "Connected!";
+      networkEl.innerText = "Network Test: ✅";
+    };
 
-  ws.onopen = () => statusEl.innerText = "Connected!";
-  ws.onerror = () => statusEl.innerText = "Error connecting";
+    ws.onerror = () => {
+      statusEl.innerText = "Error connecting";
+      networkEl.innerText = "Network Test: ❌";
+    };
 
-  ws.onclose = () => statusEl.innerText = "Closed";
+    ws.onclose = () => {
+      statusEl.innerText = "Closed";
+      networkEl.innerText = "Network Test: ❌";
+    };
+  } catch(e) {
+    statusEl.innerText = "Connection Failed";
+    networkEl.innerText = "Network Test: ❌";
+  }
 }
 
 connectWS();
 
+// ปุ่มจำลอง shake
 btn.addEventListener("click", () => {
-  if(ws.readyState === WebSocket.OPEN) ws.send("shake");
+  if(ws && ws.readyState === WebSocket.OPEN) {
+    ws.send("shake");
+  }
 });
 
 // motion sensor
-window.addEventListener('devicemotion', (event) => {
-  const a = event.accelerationIncludingGravity;
-  const total = Math.abs(a.x)+Math.abs(a.y)+Math.abs(a.z);
-  if(total>20 && ws.readyState === WebSocket.OPEN) ws.send("shake");
-});
+if(window.DeviceMotionEvent) {
+  motionEl.innerText = "Motion Sensor: ✅";
+  window.addEventListener('devicemotion', (event) => {
+    const a = event.accelerationIncludingGravity;
+    const total = Math.abs(a.x)+Math.abs(a.y)+Math.abs(a.z);
+    if(total>20 && ws && ws.readyState === WebSocket.OPEN) ws.send("shake");
+  });
+} else {
+  motionEl.innerText = "Motion Sensor: ❌ Not Supported";
+}
 </script>
 </body>
 </html>
