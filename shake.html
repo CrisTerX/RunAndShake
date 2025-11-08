@@ -21,7 +21,7 @@ async function connectWS() {
   ipEl.innerText = "Connecting to IP: " + ip;
 
   try {
-    ws = new WebSocket(`ws://${ip}:8080`);
+    ws = new WebSocket(`ws://${ip}:9090`);
     
     ws.onopen = () => {
       statusEl.innerText = "Connected!";
