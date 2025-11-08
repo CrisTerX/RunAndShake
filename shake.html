@@ -2,67 +2,78 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Shake Controller</title>
 <style>
-body {
-  font-family: sans-serif;
-  text-align: center;
-  margin-top: 30px;
-}
-input, button {
-  font-size: 18px;
-  padding: 6px;
-  margin: 6px;
-  border-radius: 10px;
-}
-#status {
-  color: green;
-  margin-top: 10px;
-  font-weight: bold;
-}
+  body { font-family: sans-serif; text-align: center; background: #111; color: white; margin: 0; padding: 40px; }
+  input, button { font-size: 20px; margin: 10px; padding: 10px; border-radius: 8px; }
+  button { background: #28a745; color: white; border: none; }
+  #status { margin-top: 20px; }
 </style>
 </head>
 <body>
-<h2>📱 ตัวควบคุมเขย่า Unity Game</h2>
-<p>ใส่ IP ของเครื่อง PC ที่รัน Unity:</p>
+  <h1>📱 Shake Controller</h1>
 
-<input id="ipInput" type="text" placeholder="เช่น 192.168.1.10" />
-<button onclick="connect()">เชื่อมต่อ</button>
+  <p>ใส่ IP ของคอม (ที่รัน Unity)</p>
+  <input type="text" id="ipInput" placeholder="เช่น 192.168.1.12" />
+  <button id="connectBtn">Connect</button>
 
-<p id="status">ยังไม่เชื่อมต่อ</p>
+  <p id="status">ยังไม่เชื่อมต่อ</p>
+  <button id="shakeBtn" style="display:none;">ส่งการเขย่า</button>
 
-<script>
-let PC_IP = "";
-const PORT = 7070;
-let lastShake = 0;
+  <script>
+    let serverIP = "";
+    const port = 7070;
 
-function connect() {
-  PC_IP = document.getElementById("ipInput").value.trim();
-  if (!PC_IP) {
-    alert("กรุณาใส่ IP ของเครื่อง PC ก่อน!");
-    return;
-  }
-  document.getElementById("status").innerText = "เชื่อมต่อกับ " + PC_IP + ":" + PORT;
-  alert("พร้อมแล้ว! เขย่ามือถือเพื่อส่งสัญญาณ");
-}
+    // ฟังก์ชันส่ง shake ไป Unity
+    function sendShake() {
+      if (!serverIP) return;
+      fetch(`http://${serverIP}:${port}/?msg=shake`)
+      .then(() => {
+        document.getElementById("status").textContent = "ส่ง shake แล้ว ✅";
+      })
+      .catch(() => {
+        document.getElementById("status").textContent = "ส่ง shake ไม่สำเร็จ ❌ ตรวจสอบ IP / Network";
+      });
+    }
 
-// ตรวจจับการเขย่า
-window.addEventListener("devicemotion", e => {
-  if (!PC_IP) return; // ยังไม่ได้ใส่ IP
-  let acc = e.accelerationIncludingGravity;
-  let total = Math.abs(acc.x) + Math.abs(acc.y) + Math.abs(acc.z);
-  let now = Date.now();
-  if (total > 35 && now - lastShake > 800) {
-    lastShake = now;
-    sendShake();
-  }
-});
+    // ปุ่ม Connect
+    document.getElementById("connectBtn").addEventListener("click", async () => {
+      serverIP = document.getElementById("ipInput").value.trim();
+      if (!serverIP) { alert("กรุณากรอก IP ของ PC"); return; }
+      document.getElementById("status").textContent = `พร้อมส่งข้อมูลไป ${serverIP}:${port}`;
+      document.getElementById("shakeBtn").style.display = "inline-block";
 
-function sendShake() {
-  fetch(`http://${PC_IP}:${PORT}/?msg=shake`).catch(err => {
-    console.log("ส่งไม่สำเร็จ:", err);
-  });
-}
-</script>
+      // iOS 13+ ต้องขออนุญาต Motion Sensor
+      if (typeof DeviceMotionEvent.requestPermission === "function") {
+        try {
+          const response = await DeviceMotionEvent.requestPermission();
+          if (response === "granted") {
+            console.log("Motion permission granted!");
+          } else {
+            alert("ไม่ได้รับอนุญาตให้ใช้ Motion Sensor");
+          }
+        } catch (err) {
+          console.error("DeviceMotion permission error:", err);
+        }
+      }
+    });
+
+    // ปุ่มส่ง shake แบบ manual
+    document.getElementById("shakeBtn").addEventListener("click", sendShake);
+
+    // ตรวจจับการเขย่าแบบจริง
+    if (window.DeviceMotionEvent) {
+      let lastShake = 0;
+      window.addEventListener("devicemotion", (event) => {
+        const acc = event.accelerationIncludingGravity;
+        const strength = Math.abs(acc.x) + Math.abs(acc.y) + Math.abs(acc.z);
+        if (strength > 30 && Date.now() - lastShake > 2000) {
+          lastShake = Date.now();
+          sendShake();
+        }
+      });
+    }
+  </script>
 </body>
 </html>
